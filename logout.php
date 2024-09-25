@@ -1,5 +1,10 @@
 <?php
 session_start();
-session_destroy();
-header('location: ./');
+
+if (isset($_SESSION)) {
+    session_destroy(); 
+}
+
+header('Location: ./');
+exit();
 ?>

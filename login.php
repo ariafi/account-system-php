@@ -2,65 +2,74 @@
 require_once 'function/db.php';
 require_once 'function/func.php';
 
-if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-	if(isset($_POST['register'])) {
-		$email = vd($_POST['email']);
-		$pwd = vd($_POST['pwd']);
-		
-		if(empty($email)) {
-			array_push($err, 'حساب الکترونیکی نمیتواند خالی باشد!');
-		} 
-		if(empty($pwd)) {
-			array_push($err, 'رمزعبور وارد نشده است!');
-		} else {
-			$pswd = md5($pwd);
-			$stmt = $conn->prepare("SELECT * FROM users WHERE email =? AND password =?");
-			$stmt->bindParam(':email', $email);
-			$stmt->bindParam(':pwd', $pwd);
-			$stmt->execute(array($email, $pswd));
-			$row = $stmt->rowCount();
-			$fetch = $stmt->fetch();
-			if($stmt->rowCount() > 0) {
-				$_SESSION['user'] = $fetch['user'];
-				$suc = 'وارد شدید. اکنون صفحه را بازخوانی کنید!';
-			} else {
-				array_push($err, 'حساب الکترونیکی یا رمزعبور نامعتبر است!');
-			}
-			
-		}
-	}
+session_start(); // Start the session
+
+$errors = [];
+$success = '';
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register'])) {
+    $email = validateInput($_POST['email']);
+    $password = validateInput($_POST['pwd']);
+
+    // Validate input fields
+    if (empty($email)) {
+        $errors[] = 'حساب الکترونیکی نمیتواند خالی باشد!';
+    }
+    if (empty($password)) {
+        $errors[] = 'رمزعبور وارد نشده است!';
+    } else {
+        // Prepare the SQL statement to avoid SQL injection
+        $stmt = $conn->prepare("SELECT * FROM users WHERE email = :email");
+        $stmt->bindParam(':email', $email);
+        $stmt->execute();
+
+        // Check if user exists
+        if ($stmt->rowCount() > 0) {
+            $user = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            // Verify the password
+            if (password_verify($password, $user['password'])) {
+                $_SESSION['user'] = $user['user'];
+                $success = 'وارد شدید. اکنون صفحه را بازخوانی کنید!';
+            } else {
+                $errors[] = 'حساب الکترونیکی یا رمزعبور نامعتبر است!';
+            }
+        } else {
+            $errors[] = 'حساب الکترونیکی یا رمزعبور نامعتبر است!';
+        }
+    }
 }
+
+/**
+ * Validate and sanitize input data
+ */
+function validateInput(string $data): string {
+    return htmlspecialchars(stripslashes(trim($data)));
+}
+
+require_once 'template/header.php'; // Include header
 ?>
-<!DOCTYPE html>
-<html lang="fa">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Account System</title>
-  <link rel="stylesheet" href="assets/style.css" />
-</head>
-<body>
-	<div class="box">
-		<form method="post">
-			<h1>ورود</h1>
-			<?php
-			if(isset($suc)) {
-				echo '<div class="suc">';
-				echo "<li>$suc</li>";
-				echo '</div>';
-			} else if(!empty($err)) {
-				echo '<div class="err">';
-				foreach ($err as $er) :
-					echo "<li>$er</li>";
-				endforeach;
-				echo '</div>';
-			}
-			?>
-			<input type="email" name="email" placeholder="حساب الکترونیکی شما">
-			<input type="password" name="pwd" placeholder="رمز عبور شما">
-			<button type="submit" name="register">ورود</button>
-			<a href="./">ثبت نام</a>
-		</form>
-	</div>
-</body>
-<html>
+
+<div class="box">
+    <form method="post">
+        <h1>ورود</h1>
+        <?php
+        // Display success or error messages
+        if (!empty($success)) {
+            echo '<div class="suc"><li>' . htmlspecialchars($success, ENT_QUOTES, 'UTF-8') . '</li></div>';
+        } elseif (!empty($errors)) {
+            echo '<div class="err">';
+            foreach ($errors as $error) {
+                echo "<li>" . htmlspecialchars($error, ENT_QUOTES, 'UTF-8') . "</li>";
+            }
+            echo '</div>';
+        }
+        ?>
+        <input type="email" name="email" placeholder="حساب الکترونیکی شما" required>
+        <input type="password" name="pwd" placeholder="رمز عبور شما" required>
+        <button type="submit" name="register">ورود</button>
+        <a href="/register.php">ثبت نام</a>
+    </form>
+</div>
+
+<?php require_once 'template/footer.php'; // Include footer ?>
