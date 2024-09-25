@@ -1,13 +1,15 @@
 <?php
 session_start();
-if(!empty($_SESSION['user'])) {
-	header('location: dashboard.php');
+
+if (isset($_SESSION['user']) && $_SESSION['user'] !== '') {
+    header('Location: dashboard.php');
+    exit();
 }
-$err = array();
-function vd($data) {
-	$data = trim($data);
-	$data = htmlspecialchars($data);
-	$data = stripslashes($data);
-	return $data;
+
+$errors = [];
+
+function validateData(string $data): string {
+    return htmlspecialchars(stripslashes(trim($data)));
 }
+
 ?>
